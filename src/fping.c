@@ -301,6 +301,7 @@ int per_recv_flag, report_all_rtts_flag, name_flag, addr_flag, backoff_flag;
 int multif_flag;
 int timestamp_flag = 0;
 int random_data_flag = 0;
+int csv_flag;
 #if defined( DEBUG ) || defined( _DEBUG )
 int randomly_lose_flag, sent_times_flag, trace_flag, print_per_system_flag;
 int lose_factor;
@@ -377,7 +378,7 @@ int main( int argc, char **argv )
 
     /* get command line options */
 
-    while( ( c = getopt( argc, argv, "gedhlmnqusaAvDRz:t:H:i:p:f:r:c:b:C:Q:B:S:I:T:O:" ) ) != EOF )
+    while( ( c = getopt( argc, argv, "gedhlmnqusaAvVDRz:t:H:i:p:f:r:c:b:C:Q:B:S:I:T:O:" ) ) != EOF )
     {
         switch( c )
         {
@@ -459,6 +460,13 @@ int main( int argc, char **argv )
             addr_flag = 1;
             break;
 
+        case 'V':
+            // Output results in comma separated variable format
+            csv_flag = 1;
+            verbose_flag = 0;
+            quiet_flag = 1;
+            break;
+
         case 'B':
             if( !( backoff = atof( optarg ) ) )
                 usage(1);
@@ -506,6 +514,8 @@ int main( int argc, char **argv )
         case 'v':
             printf( "%s: Version %s\n", argv[0], VERSION);
             printf( "%s: comments to %s\n", argv[0], EMAIL );
+            printf( "Forked from original. Source can be found in the csv branch at:\n" );
+            printf( "    https://github.com/NetworkEng/fping/tree/csv\n" );
             exit( 0 );
 
         case 'f': 
@@ -682,6 +692,7 @@ int main( int argc, char **argv )
         if( multif_flag ) fprintf( stderr, "  multif_flag set\n" );
         if( name_flag ) fprintf( stderr, "  name_flag set\n" );
         if( addr_flag ) fprintf( stderr, "  addr_flag set\n" );
+        if( csv_flag ) fprintf( stderr, "  csv_flag set\n" );
         if( stats_flag ) fprintf( stderr, "  stats_flag set\n" );
         if( unreachable_flag ) fprintf( stderr, "  unreachable_flag set\n" );
         if( alive_flag ) fprintf( stderr, "  alive_flag set\n" );
@@ -1111,15 +1122,18 @@ void finish()
         {
             num_unreachable++;
 
-            if( verbose_flag || unreachable_flag )
-            {
-                printf( "%s", h->host );
+            if( verbose_flag || unreachable_flag ) {
+                if( csv_flag ) {
+                    printf("%s,unreachable\n", h->host);
+                }
+                else {
+                    printf( "%s", h->host );
 
-                if( verbose_flag ) 
-                    printf( " is unreachable" );
-                
-                printf( "\n" );
-            
+                    if( verbose_flag )
+                        printf( " is unreachable" );
+
+                    printf( "\n" );
+                }/* ELSE */
             }/* IF */
         }/* IF */
     }/* FOR */
@@ -1622,22 +1636,28 @@ int wait_for_reply(long wait_time)
         num_alive++;
         if( verbose_flag || alive_flag )
         {
-            printf( "%s", h->host );
-
-            if( verbose_flag )
-                printf( " is alive" );
-
-            if( elapsed_flag )
-                printf( " (%s ms)", sprint_tm( this_reply ) );
-
-            if(addr_cmp((struct sockaddr *)&response_addr, (struct sockaddr *)&h->saddr)) {
-                char buf[INET6_ADDRSTRLEN];
-                getnameinfo((struct sockaddr *)&response_addr, response_addr_len, buf, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
-                fprintf( stderr, " [<- %s]", buf);
+            if( csv_flag ) {
+                printf("%s,alive\n", h->host);
             }
+            else {
+                printf("%s", h->host);
 
-            printf( "\n" );
-        
+                if (verbose_flag && !csv_flag)
+                    printf(" is alive");
+
+                if (elapsed_flag)
+                    printf(" (%s ms)", sprint_tm(this_reply));
+
+                if (addr_cmp((struct sockaddr *) &response_addr, (struct sockaddr *) &h->saddr)) {
+                    char buf[INET6_ADDRSTRLEN];
+                    getnameinfo((struct sockaddr *) &response_addr, response_addr_len, buf, INET6_ADDRSTRLEN, NULL, 0,
+                                NI_NUMERICHOST);
+                    fprintf(stderr, " [<- %s]", buf);
+                }
+
+                printf("\n");
+
+            }/* ELSE */
         }/* IF */
     }/* IF */
 
@@ -1836,8 +1856,26 @@ void add_name( char *name )
 #endif
     ret_ga = getaddrinfo(name, NULL, &hints, &res0);
     if (ret_ga) {
-        if(!quiet_flag)
-            print_warning("%s: %s\n", name, gai_strerror(ret_ga));
+        if( !quiet_flag && !csv_flag && !alive_flag ) {
+            // print_warning("ERROR1: %s: %s\n", name, gai_strerror(ret_ga));
+            // Prefer instead to print message to stdout, and keep output
+            // consistent with alive and unreachable results
+            if( addr_flag && name_flag ) {
+                printf("%s (UNKNOWN) is unresolvable\n", name);
+            }
+            else {
+                // print_warning("ERROR1: %s: %s\n", name, gai_strerror(ret_ga));
+                printf("%s is unresolvable\n", name);
+            }
+        }
+        if( csv_flag && !alive_flag ) {
+            if( addr_flag && name_flag ) {
+                printf("%s,UNKNOWN,unresolvable\n", name);
+            }
+            else {
+                printf("%s,unresolvable\n", name);
+            }
+        }
         num_noaddress++;
         return; 
     }
@@ -1880,7 +1918,12 @@ void add_name( char *name )
                 return; 
             }
 
-            if(name_flag) {
+            if( name_flag && csv_flag ) {
+                char nameaddrbuf[512];
+                snprintf(nameaddrbuf, sizeof(nameaddrbuf)/sizeof(char), "%s,%s", printname, addrbuf);
+                add_addr(name, nameaddrbuf, res->ai_addr, res->ai_addrlen);
+            }
+            else if( name_flag && !csv_flag ) {
                 char nameaddrbuf[512];
                 snprintf(nameaddrbuf, sizeof(nameaddrbuf)/sizeof(char), "%s (%s)", printname, addrbuf);
                 add_addr(name, nameaddrbuf, res->ai_addr, res->ai_addrlen);
@@ -2394,6 +2437,7 @@ void usage(int is_error)
     fprintf(out, "   -T n       ignored (for compatibility with fping 2.4)\n");
     fprintf(out, "   -u         show targets that are unreachable\n" );
     fprintf(out, "   -v         show version\n" );
+    fprintf(out, "   -V         display output in CSV format\n" );
     fprintf(out, "   targets    list of targets to check (if no -f specified)\n" );
     fprintf(out, "\n");
     exit(is_error);
