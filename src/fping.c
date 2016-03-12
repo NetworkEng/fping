@@ -1122,15 +1122,15 @@ void finish()
         {
             num_unreachable++;
 
-            if( verbose_flag || unreachable_flag ) {
-                if( csv_flag ) {
+            if( verbose_flag || unreachable_flag || csv_flag ) {
+                if( csv_flag && !alive_flag ) {
                     printf("%s,unreachable\n", h->host);
                 }
-                else {
+                else if( !alive_flag ) {
                     printf( "%s", h->host );
 
                     if( verbose_flag )
-                        printf( " is unreachable" );
+                        printf(" is unreachable");
 
                     printf( "\n" );
                 }/* ELSE */
@@ -1634,12 +1634,12 @@ int wait_for_reply(long wait_time)
     if( h->num_recv == 1 )
     {
         num_alive++;
-        if( verbose_flag || alive_flag )
+        if( verbose_flag || alive_flag || csv_flag )
         {
-            if( csv_flag ) {
+            if( csv_flag && !unreachable_flag ) {
                 printf("%s,alive\n", h->host);
             }
-            else {
+            else if( !unreachable_flag ) {
                 printf("%s", h->host);
 
                 if (verbose_flag && !csv_flag)
