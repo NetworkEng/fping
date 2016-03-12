@@ -193,6 +193,10 @@ Set the typ of service flag (TOS). I<n> can be either decimal or hexadecimal
 
 Print B<fping> version information. 
 
+=item B<-V>
+
+Display alive, unreachable and unresolvable results in CSV format.
+
 =item B<-H> I<n>
 
 Set the IP TTL field (time to live hops). 

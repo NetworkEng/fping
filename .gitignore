@@ -1,5 +1,5 @@
 .*.swp
-*.tar.gz
+#*.tar.gz
 *~
 src/*.gcno
 src/*.gcda
