@@ -75,3 +75,5 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile])
 
 AC_OUTPUT
+AM_PROG_CC_C_O
+

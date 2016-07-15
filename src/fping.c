@@ -514,8 +514,8 @@ int main( int argc, char **argv )
         case 'v':
             printf( "%s: Version %s\n", argv[0], VERSION);
             printf( "%s: comments to %s\n", argv[0], EMAIL );
-            printf( "Forked from original. Source can be found in the csv branch at:\n" );
-            printf( "    https://github.com/NetworkEng/fping/tree/csv\n" );
+            printf( "Original can be found in forked in repo:\n" );
+            printf( "    https://github.com/rctorr/fping\n" );
             exit( 0 );
 
         case 'f': 
@@ -1637,7 +1637,12 @@ int wait_for_reply(long wait_time)
         if( verbose_flag || alive_flag || csv_flag )
         {
             if( csv_flag && !unreachable_flag ) {
-                printf("%s,alive\n", h->host);
+                printf("%s,alive", h->host);
+
+                if (elapsed_flag)
+                    printf(",%s ms", sprint_tm(this_reply));
+
+                printf("\n");
             }
             else if( !unreachable_flag ) {
                 printf("%s", h->host);
